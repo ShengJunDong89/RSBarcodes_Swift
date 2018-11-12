@@ -57,7 +57,9 @@ open class RSCodeReaderViewController: UIViewController, AVCaptureMetadataOutput
 	@objc open func switchCamera() -> AVCaptureDevice.Position {
 		if !Platform.isSimulator {
 			self.session.stopRunning()
-			let captureDevice = self.captureDevice()
+            let position = self.device?.position ?? .back
+            let reversedPosition: AVCaptureDevice.Position = (position == .front) ? .back : .front
+			let captureDevice = self.captureDevice(position: reversedPosition)
 			if let device = captureDevice {
 				self.device = device
 			}
@@ -100,29 +102,20 @@ open class RSCodeReaderViewController: UIViewController, AVCaptureMetadataOutput
 	
    // MARK: Private methods
    
-   @objc func captureDevice() -> AVCaptureDevice? {
-      if let device = self.device {
-         if #available(iOS 10.0, *) {
-            let devices = AVCaptureDevice.DiscoverySession(deviceTypes: [AVCaptureDevice.DeviceType.builtInWideAngleCamera], mediaType: AVMediaType.video, position: device.position).devices
+    @objc func captureDevice(position: AVCaptureDevice.Position = .back) -> AVCaptureDevice? {
+        if #available(iOS 10.0, *) {
+            let devices = AVCaptureDevice.DiscoverySession(deviceTypes: [AVCaptureDevice.DeviceType.builtInWideAngleCamera], mediaType: AVMediaType.video, position: position).devices
             return devices.first
-         } else {
-            if device.position == AVCaptureDevice.Position.back {
-               for device: AVCaptureDevice in AVCaptureDevice.devices(for: AVMediaType.video) {
-                  if device.position == AVCaptureDevice.Position.front {
-                     return device
-                  }
-               }
-            } else if device.position == AVCaptureDevice.Position.front {
-               for device: AVCaptureDevice in AVCaptureDevice.devices(for: AVMediaType.video) {
-                  if device.position == AVCaptureDevice.Position.back {
-                     return device
-                  }
-               }
+        } else {
+            for device: AVCaptureDevice in AVCaptureDevice.devices(for: AVMediaType.video) {
+                if device.position == position {
+                    return device
+                }
             }
-         }
-      }
-      return nil
-   }
+        }
+        
+        return nil
+    }
 	
 	@objc func setupCamera() {
 		var error : NSError?
