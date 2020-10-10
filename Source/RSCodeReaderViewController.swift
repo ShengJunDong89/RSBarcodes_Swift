@@ -75,7 +75,8 @@ open class RSCodeReaderViewController: UIViewController, AVCaptureMetadataOutput
 			return .unspecified
 		}
 	}
-	
+
+    @discardableResult
 	@objc open func toggleTorch() -> Bool {
 		if self.hasTorch() {
 			self.session.beginConfiguration()
@@ -170,15 +171,17 @@ open class RSCodeReaderViewController: UIViewController, AVCaptureMetadataOutput
 			self.output.setMetadataObjectsDelegate(self, queue: queue)
 		}
 		// Remove previous added outputs from session
-		var metadataObjectTypes: [AnyObject]?
+		var metadataObjectTypes: [AVMetadataObject.ObjectType]?
 		for output in self.session.outputs {
-			metadataObjectTypes = (output as AnyObject).metadataObjectTypes as [AnyObject]?
-			self.session.removeOutput(output )
+			if let output = output as? AVCaptureMetadataOutput {
+				metadataObjectTypes = output.metadataObjectTypes
+			}
+			self.session.removeOutput(output)
 		}
 		if self.session.canAddOutput(self.output) {
 			self.session.addOutput(self.output)
 			if let metadataObjectTypes = metadataObjectTypes {
-				self.output.metadataObjectTypes = metadataObjectTypes as? [AVMetadataObject.ObjectType]
+				self.output.metadataObjectTypes = metadataObjectTypes
 			} else  {
 				self.output.metadataObjectTypes = self.output.availableMetadataObjectTypes
 			}
@@ -199,7 +202,9 @@ open class RSCodeReaderViewController: UIViewController, AVCaptureMetadataOutput
 			return AVCaptureVideoOrientation.landscapeLeft
 		case .landscapeRight:
 			return AVCaptureVideoOrientation.landscapeRight
-		}
+        @unknown default:
+            return AVCaptureVideoOrientation.portrait
+        }
 	}
 	
 	@objc func reloadVideoOrientation() {
@@ -369,9 +374,9 @@ open class RSCodeReaderViewController: UIViewController, AVCaptureMetadataOutput
 	
 	override open func viewDidDisappear(_ animated: Bool) {
 		super.viewDidDisappear(animated)
-		
-        NotificationCenter.default.removeObserver(self, name: UIApplication.willEnterForegroundNotification, object: nil)
-        NotificationCenter.default.removeObserver(self, name: UIApplication.didEnterBackgroundNotification, object: nil)
+
+      NotificationCenter.default.removeObserver(self, name: UIApplication.willEnterForegroundNotification, object: nil)
+      NotificationCenter.default.removeObserver(self, name: UIApplication.didEnterBackgroundNotification, object: nil)
 		if !Platform.isSimulator {
 			self.session.stopRunning()
 		}
@@ -388,7 +393,9 @@ open class RSCodeReaderViewController: UIViewController, AVCaptureMetadataOutput
 					if transformedMetadataObject.isKind(of: AVMetadataMachineReadableCodeObject.self) {
 						let barcodeObject = transformedMetadataObject as! AVMetadataMachineReadableCodeObject
 						barcodeObjects.append(barcodeObject)
+						#if !targetEnvironment(simulator)
 						cornersArray.append(barcodeObject.corners)
+						#endif
 					}
 				}
 			}
